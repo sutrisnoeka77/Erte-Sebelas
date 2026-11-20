@@ -150,12 +150,6 @@
                         <i data-lucide="download" class="w-3.5 h-3.5"></i>
                         <span>Install App</span>
                     </button>
-
-                    <!-- Tombol Reset Data Demo -->
-                    <button onclick="resetDemoData()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-medium text-slate-600 hover:text-rose-600 transition" title="Kembalikan data awal bawaan">
-                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
-                        <span>Reset Data Demo</span>
-                    </button>
                 </div>
             </div>
         </div>
@@ -205,34 +199,6 @@
                         <span>Masuk ke Portal RT SEBELAS</span>
                     </button>
                 </form>
-
-                <!-- Tombol Cepat Contoh Akun Uji Coba -->
-                <div class="pt-4 border-t border-slate-100 space-y-2.5">
-                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Contoh Akun Uji Coba (Klik untuk Isi Otomatis):</p>
-                    <div class="grid grid-cols-1 gap-2">
-                        <button type="button" onclick="fillDemoAccount('081234567801', '3275')" class="flex items-center justify-between p-2.5 rounded-xl bg-amber-50/70 hover:bg-amber-100/80 border border-amber-200/80 text-left transition">
-                            <div>
-                                <span class="text-xs font-bold text-slate-900 block">Budi Santoso</span>
-                                <span class="text-[11px] text-slate-600">WA: 081234567801 • PIN: 3275</span>
-                            </div>
-                            <span class="px-2 py-0.5 rounded-lg bg-blue-950 text-amber-300 text-[10px] font-bold">Pengurus RT</span>
-                        </button>
-                        <button type="button" onclick="fillDemoAccount('081234567802', '3275')" class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50/70 border border-slate-200 text-left transition">
-                            <div>
-                                <span class="text-xs font-bold text-slate-900 block">Siti Aminah</span>
-                                <span class="text-[11px] text-slate-600">WA: 081234567802 • PIN: 3275</span>
-                            </div>
-                            <span class="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 text-[10px] font-bold">Warga</span>
-                        </button>
-                        <button type="button" onclick="fillDemoAccount('081234567803', '3275')" class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50/70 border border-slate-200 text-left transition">
-                            <div>
-                                <span class="text-xs font-bold text-slate-900 block">Andi Pratama</span>
-                                <span class="text-[11px] text-slate-600">WA: 081234567803 • PIN: 3275</span>
-                            </div>
-                            <span class="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 text-[10px] font-bold">Warga</span>
-                        </button>
-                    </div>
-                </div>
             </div>
 
             <!-- Papan Pengumuman Umum RT (7 kolom) -->
@@ -1217,12 +1183,6 @@
         };
 
         // --- LOGIN & ROLE-BASED ACCESS ---
-        window.fillDemoAccount = function(wa, pin) {
-            document.getElementById('login-wa').value = wa;
-            document.getElementById('login-pin').value = pin;
-            document.getElementById('login-error-box').classList.add('hidden');
-        };
-
         window.handleLogin = function(e) {
             e.preventDefault();
             const inputWA = normalizeWA(document.getElementById('login-wa').value);
@@ -1255,15 +1215,6 @@
         window.togglePengurusPersonalMode = function() {
             pengurusViewingPersonal = !pengurusViewingPersonal;
             renderAllViews();
-        };
-
-        window.resetDemoData = async function() {
-            sharedState = createDefaultData();
-            currentUserId = null;
-            pengurusViewingPersonal = false;
-            await persistState();
-            renderAllViews();
-            showToast('Data demo awal RT SEBELAS berhasil dipulihkan.');
         };
 
         // --- RENDER UTAMA BERDASARKAN PERAN ---
@@ -2261,10 +2212,16 @@
             }
             const waNumber = toInternationalWA(warga.noWA);
             const pesan = encodeURIComponent(
-                `Assalamu'alaikum Bapak/Ibu *${surat.namaPemohon}* (${warga.blok}),\n\n` +
-                `Pengajuan *${surat.jenisSurat}* Anda telah *DISETUJUI* oleh Pengurus RT ${sharedState.profile.rt} / RW ${sharedState.profile.rw}.\n` +
-                `• Nomor Surat: *${surat.nomorSurat}*\n` +
-                `• Keperluan: ${surat.keperluan}\n\n` +
+                `Assalamu'alaikum Bapak/Ibu *${surat.namaPemohon}* (${warga.blok}),
+
+` +
+                `Pengajuan *${surat.jenisSurat}* Anda telah *DISETUJUI* oleh Pengurus RT ${sharedState.profile.rt} / RW ${sharedState.profile.rw}.
+` +
+                `• Nomor Surat: *${surat.nomorSurat}*
+` +
+                `• Keperluan: ${surat.keperluan}
+
+` +
                 `Silakan buka aplikasi *RT SEBELAS* untuk mencetak surat atau hubungi pengurus untuk stempel basah. Terima kasih.`
             );
             window.open(`https://wa.me/${waNumber}?text=${pesan}`, '_blank');
@@ -2274,10 +2231,16 @@
             const p = sharedState.pengumuman.find((item) => item.id === pengumumanId);
             if (!p) return;
             const pesan = encodeURIComponent(
-                `📢 *PENGUMUMAN RT ${sharedState.profile.rt} / RW ${sharedState.profile.rw}*\n` +
-                `Kategori: *${p.kategori}* (${p.tanggal})\n\n` +
-                `*${p.judul}*\n` +
-                `${p.isi}\n\n` +
+                `📢 *PENGUMUMAN RT ${sharedState.profile.rt} / RW ${sharedState.profile.rw}*
+` +
+                `Kategori: *${p.kategori}* (${p.tanggal})
+
+` +
+                `*${p.judul}*
+` +
+                `${p.isi}
+
+` +
                 `_Info lengkap tersedia di Portal Digital RT SEBELAS._`
             );
             window.open(`https://wa.me/?text=${pesan}`, '_blank');
@@ -2287,11 +2250,18 @@
             const pengurus = sharedState.warga.find((w) => w.role === 'pengurus' && w.noWA);
             const waTarget = pengurus ? toInternationalWA(pengurus.noWA) : '';
             const pesan = encodeURIComponent(
-                `Assalamu'alaikum Pengurus RT ${sharedState.profile.rt} / RW ${sharedState.profile.rw},\n\n` +
-                `Saya *${user.nama}* (${user.blok}) baru saja mengajukan surat pengantar di aplikasi *RT SEBELAS*:\n` +
-                `• Nama Pemohon: *${namaPemohon}*\n` +
-                `• Jenis Surat: *${jenisSurat}*\n` +
-                `• Keperluan: ${keperluan}\n\n` +
+                `Assalamu'alaikum Pengurus RT ${sharedState.profile.rt} / RW ${sharedState.profile.rw},
+
+` +
+                `Saya *${user.nama}* (${user.blok}) baru saja mengajukan surat pengantar di aplikasi *RT SEBELAS*:
+` +
+                `• Nama Pemohon: *${namaPemohon}*
+` +
+                `• Jenis Surat: *${jenisSurat}*
+` +
+                `• Keperluan: ${keperluan}
+
+` +
                 `Mohon berkenan untuk ditinjau. Terima kasih.`
             );
             const url = waTarget ? `https://wa.me/${waTarget}?text=${pesan}` : `https://wa.me/?text=${pesan}`;
