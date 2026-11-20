@@ -365,7 +365,17 @@
                                     <h3 class="font-bold text-slate-900 text-base">Rekap Status Iuran</h3>
                                     <select id="rekap-month-filter" onchange="renderRekapIuranTable()" class="px-3 py-1.5 text-xs font-bold bg-slate-100 border border-slate-200 rounded-xl text-slate-800 outline-none"></select>
                                 </div>
-                                <span id="rekap-summary-badge" class="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold self-start sm:self-auto">0/0 Lunas</span>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span id="rekap-summary-badge" class="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">0/0 Lunas</span>
+                                    <button type="button" onclick="resetRiwayatIuranBulan()" class="px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-xs font-bold inline-flex items-center gap-1 transition" title="Reset status lunas pada bulan yang sedang dipilih">
+                                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                                        <span>Reset Bulan Ini</span>
+                                    </button>
+                                    <button type="button" onclick="resetSemuaRiwayatIuran()" class="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold inline-flex items-center gap-1 transition" title="Reset seluruh riwayat pembayaran iuran semua warga">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                        <span>Reset Semua</span>
+                                    </button>
+                                </div>
                             </div>
                             <div class="overflow-x-auto">
                                 <table class="w-full text-left border-collapse">
@@ -1126,7 +1136,7 @@
                         noWA: '081234567801',
                         pin: '3275',
                         role: 'pengurus',
-                        lunasMonths: [mPrev2, mPrev1, mCurr],
+                        lunasMonths: [],
                         anggota: [
                             { id: 'a1', nama: 'Budi Santoso', nik: '3275011204850001', hubungan: 'Kepala Keluarga' },
                             { id: 'a2', nama: 'Rina Marlina', nik: '3275015406870002', hubungan: 'Istri' },
@@ -1141,7 +1151,7 @@
                         noWA: '081234567802',
                         pin: '3275',
                         role: 'warga',
-                        lunasMonths: [mPrev2],
+                        lunasMonths: [],
                         anggota: [
                             { id: 'a4', nama: 'Siti Aminah', nik: '3275016509880004', hubungan: 'Kepala Keluarga' },
                             { id: 'a5', nama: 'Nadia Putri', nik: '3275014807140005', hubungan: 'Anak' }
@@ -1155,7 +1165,7 @@
                         noWA: '081234567803',
                         pin: '3275',
                         role: 'warga',
-                        lunasMonths: [mPrev2, mPrev1],
+                        lunasMonths: [],
                         anggota: [
                             { id: 'a6', nama: 'Andi Pratama', nik: '3275010811900002', hubungan: 'Kepala Keluarga' }
                         ]
@@ -1947,6 +1957,18 @@
             showToast(`Pembayaran ${warga.nama} (${labels}) tersimpan!`);
         };
 
+        function removeKasTerkaitBulan(warga, monthKey) {
+            const labelShort = formatMonthKey(monthKey).shortLabel;
+            const labelFull = formatMonthKey(monthKey).fullLabel;
+            sharedState.kas = (sharedState.kas || []).filter((k) => {
+                if (k.jenis !== 'masuk') return true;
+                const desc = String(k.keterangan || '');
+                const matchWarga = desc.includes(warga.nama) || desc.includes(warga.blok);
+                const matchMonth = desc.includes(labelShort) || desc.includes(labelFull) || desc.includes(monthKey);
+                return !(matchWarga && matchMonth);
+            });
+        }
+
         window.renderRekapIuranTable = function() {
             const selectedMonth = document.getElementById('rekap-month-filter').value;
             const tbody = document.getElementById('tbody-rekap-iuran');
@@ -1969,11 +1991,14 @@
                                 ${isLunas ? 'Lunas' : 'Belum Lunas'}
                             </span>
                         </td>
-                        <td class="py-3 px-4 text-right">
+                        <td class="py-3 px-4 text-right whitespace-nowrap">
                             ${
                                 isLunas
-                                    ? `<span class="text-xs text-slate-400 font-medium">Tercatat</span>`
-                                    : `<button onclick="toggleSingleMonthPaid('${w.id}', '${selectedMonth}')" class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">Lunasi</button>`
+                                    ? `<button type="button" onclick="unmarkSingleMonthPaid('${w.id}', '${selectedMonth}')" class="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-xs font-bold inline-flex items-center gap-1 transition" title="Batalkan status lunas / ubah jadi belum lunas">
+                                        <i data-lucide="pencil" class="w-3 h-3"></i>
+                                        <span>Edit</span>
+                                       </button>`
+                                    : `<button type="button" onclick="toggleSingleMonthPaid('${w.id}', '${selectedMonth}')" class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition">Lunasi</button>`
                             }
                         </td>
                     </tr>`;
@@ -1981,6 +2006,7 @@
                 .join('');
 
             document.getElementById('rekap-summary-badge').textContent = `${lunasCount}/${sharedState.warga.length} Lunas`;
+            lucide.createIcons();
         };
 
         window.toggleSingleMonthPaid = async function(wargaId, monthKey) {
@@ -1998,6 +2024,60 @@
             await persistState();
             renderPengurusDashboard();
             showToast(`Iuran ${warga.nama} (${formatMonthKey(monthKey).shortLabel}) ditandai lunas.`);
+        };
+
+        window.unmarkSingleMonthPaid = async function(wargaId, monthKey) {
+            const warga = sharedState.warga.find((w) => w.id === wargaId);
+            if (!warga) return;
+            const labelBulan = formatMonthKey(monthKey).fullLabel;
+            if (!confirm(`Ubah status iuran ${warga.nama} (${warga.blok}) periode ${labelBulan} menjadi Belum Lunas?`)) {
+                return;
+            }
+
+            warga.lunasMonths = (warga.lunasMonths || []).filter((m) => m !== monthKey);
+            removeKasTerkaitBulan(warga, monthKey);
+
+            await persistState();
+            renderPengurusDashboard();
+            showToast(`Status iuran ${warga.nama} (${labelBulan}) direset menjadi Belum Lunas.`);
+        };
+
+        window.resetRiwayatIuranBulan = async function() {
+            const selectedMonth = document.getElementById('rekap-month-filter')?.value || CURRENT_MONTH_KEY;
+            const labelBulan = formatMonthKey(selectedMonth).fullLabel;
+            if (!confirm(`Reset seluruh status pembayaran iuran pada periode ${labelBulan} menjadi Belum Lunas?`)) {
+                return;
+            }
+
+            sharedState.warga.forEach((w) => {
+                if ((w.lunasMonths || []).includes(selectedMonth)) {
+                    w.lunasMonths = (w.lunasMonths || []).filter((m) => m !== selectedMonth);
+                    removeKasTerkaitBulan(w, selectedMonth);
+                }
+            });
+
+            await persistState();
+            renderPengurusDashboard();
+            showToast(`Riwayat pembayaran periode ${labelBulan} berhasil direset.`);
+        };
+
+        window.resetSemuaRiwayatIuran = async function() {
+            if (!confirm('Reset SEMUA riwayat pembayaran iuran seluruh warga (semua bulan) menjadi kosong/belum lunas?')) {
+                return;
+            }
+
+            sharedState.warga.forEach((w) => {
+                w.lunasMonths = [];
+            });
+
+            sharedState.kas = (sharedState.kas || []).filter((k) => {
+                const desc = String(k.keterangan || '').toLowerCase();
+                return !(k.jenis === 'masuk' && desc.startsWith('iuran'));
+            });
+
+            await persistState();
+            renderPengurusDashboard();
+            showToast('Seluruh riwayat pembayaran iuran berhasil direset.');
         };
 
         window.handleAddKategoriIuran = async function(e) {
@@ -2121,7 +2201,6 @@
                 const romanMonth = ROMAN_MONTHS[now.getMonth()];
                 const currentYear = now.getFullYear();
 
-                // Hitung nomor urut berjalan di tahun yang sama (tidak bentrok meski riwayat lama ada/direset)
                 const lastSeq = Number(sharedState.lastSuratSeqByYear?.[currentYear]) || 0;
                 const approvedInYear = sharedState.surat.filter(
                     (s) => s.status === 'Disetujui' && s.id !== surat.id && String(s.nomorSurat || '').endsWith(`/${currentYear}`)
@@ -2333,7 +2412,6 @@
             document.getElementById('warga-welcome-meta').textContent = `${user.blok} • No. KK: ${user.noKK} • RT ${prof.rt}/RW ${prof.rw}`;
             document.getElementById('warga-tarif-bulanan').textContent = `${formatRupiah(tarifBulanan)} / bln`;
 
-            // Isi pilihan anggota keluarga pada form surat pengantar warga
             const anggotaList = Array.isArray(user.anggota) && user.anggota.length
                 ? user.anggota
                 : [{ id: 'kk_' + user.id, nama: user.nama, nik: user.noKK, hubungan: 'Kepala Keluarga' }];
@@ -2357,7 +2435,6 @@
                 .map((a) => `<option value="${a.nama}|${a.nik}">${a.nama} (${a.hubungan})</option>`)
                 .join('');
 
-            // Rincian kategori iuran
             document.getElementById('warga-rincian-tarif').innerHTML = sharedState.kategoriIuran
                 .map(
                     (k) => `
@@ -2368,14 +2445,12 @@
                 )
                 .join('');
 
-            // Filter periode untuk warga:
-            // HANYA periode sebelum bulan berjalan yang BELUM LUNAS + bulan berjalan saat ini
             const allPeriods = getPeriodList();
             const visiblePeriods = allPeriods.filter((p) => {
-                if (p.key > CURRENT_MONTH_KEY) return false; // Bulan berikutnya tidak ditampilkan
-                if (p.key === CURRENT_MONTH_KEY) return true; // Bulan berjalan selalu tampil
+                if (p.key > CURRENT_MONTH_KEY) return false;
+                if (p.key === CURRENT_MONTH_KEY) return true;
                 const isPaid = (user.lunasMonths || []).includes(p.key);
-                return !isPaid; // Sebelum bulan berjalan: tampilkan hanya jika belum lunas (tunggakan)
+                return !isPaid;
             });
 
             const currentPaid = (user.lunasMonths || []).includes(CURRENT_MONTH_KEY);
@@ -2409,7 +2484,6 @@
                 })
                 .join('');
 
-            // Tombol Konfirmasi WA ke Bendahara jika ada tagihan belum lunas
             const unpaidVisible = visiblePeriods.filter((p) => !(user.lunasMonths || []).includes(p.key));
             const waBox = document.getElementById('warga-wa-confirm-box');
             if (unpaidVisible.length > 0) {
@@ -2430,7 +2504,6 @@
                     </div>`;
             }
 
-            // Pengumuman di Portal Warga
             document.getElementById('warga-pengumuman-list').innerHTML = sharedState.pengumuman
                 .map(
                     (p) => `
@@ -2445,7 +2518,6 @@
                 )
                 .join('');
 
-            // Riwayat Surat Warga
             const mySurat = sharedState.surat.filter((s) => s.wargaId === user.id);
             const suratContainer = document.getElementById('warga-surat-list');
             if (!mySurat.length) {
