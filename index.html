@@ -442,9 +442,15 @@
             <!-- TAB 3: PENGAJUAN SURAT PENGANTAR -->
             <div id="panel-pengurus-surat" class="pengurus-panel hidden space-y-4">
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div class="p-4 sm:p-5 border-b border-slate-200">
-                        <h3 class="font-bold text-slate-900 text-base">Antrean &amp; Arsip Surat Pengantar Warga</h3>
-                        <p class="text-xs text-slate-500">Setujui pengajuan warga dan cetak surat dengan ruang bersih untuk tanda tangan &amp; stempel basah</p>
+                    <div class="p-4 sm:p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-base">Antrean &amp; Arsip Surat Pengantar Warga</h3>
+                            <p class="text-xs text-slate-500">Setujui, edit redaksi surat untuk keperluan lainnya, cetak, atau reset riwayat surat</p>
+                        </div>
+                        <button type="button" onclick="resetRiwayatSurat()" class="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold inline-flex items-center gap-1.5 self-start sm:self-auto transition" title="Hapus seluruh riwayat pengajuan surat">
+                            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                            <span>Reset Riwayat Surat</span>
+                        </button>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse">
@@ -520,8 +526,48 @@
                             <label class="block text-xs font-semibold text-slate-700 mb-1">Kelurahan, Kecamatan &amp; Kota</label>
                             <input type="text" id="prof-wilayah" required class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl outline-none">
                         </div>
-                        <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition">Simpan Profil RT</button>
+                        <div class="pt-2 border-t border-slate-100 space-y-2.5">
+                            <p class="text-xs font-bold text-slate-800">Template Redaksi Surat Default</p>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Kalimat Pembuka Surat</label>
+                                <textarea id="prof-tpl-pembuka" rows="2" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-900"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Kalimat Pengantar Sebelum Biodata</label>
+                                <input type="text" id="prof-tpl-pengantar" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-900">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Paragraf Penutup Standar</label>
+                                <textarea id="prof-tpl-penutup" rows="2" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-900"></textarea>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition">Simpan Profil &amp; Template Surat</button>
                     </form>
+
+                    <!-- Backup & Restore Data JSON -->
+                    <div class="pt-4 border-t border-slate-200 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                                <i data-lucide="database-backup" class="w-4 h-4 text-blue-900"></i>
+                                Backup &amp; Restore Data RT
+                            </h4>
+                            <span class="text-[10px] font-semibold text-slate-400">Format .JSON</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 leading-relaxed">
+                            Unduh salinan seluruh data warga, kas, iuran, surat, dan profil RT ke memori HP/laptop sebagai cadangan jika perangkat direset.
+                        </p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button" onclick="handleBackupDataJSON()" class="py-2.5 px-3 bg-blue-950 hover:bg-blue-900 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-2xs transition">
+                                <i data-lucide="download" class="w-3.5 h-3.5 text-amber-300"></i>
+                                <span>Backup Data</span>
+                            </button>
+                            <button type="button" onclick="triggerRestoreDataJSON()" class="py-2.5 px-3 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition">
+                                <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                                <span>Restore Data</span>
+                            </button>
+                        </div>
+                        <input type="file" id="restore-json-input" accept=".json,application/json" onchange="handleRestoreDataJSON(event)" class="hidden">
+                    </div>
                 </div>
             </div>
         </section>
@@ -859,6 +905,64 @@
     </div>
 
     <!-- ===================================================================== -->
+    <!-- MODAL EDIT SURAT PENGANTAR (UNTUK KEPERLUAN LAINNYA / PENYESUAIAN)    -->
+    <!-- ===================================================================== -->
+    <div id="modal-edit-surat" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-40 hidden items-center justify-center p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-base">Edit Surat Pengantar</h3>
+                    <p class="text-xs text-slate-500">Sesuaikan nomor, jenis surat, keperluan, atau redaksi isi surat</p>
+                </div>
+                <button type="button" onclick="closeModal('modal-edit-surat')" class="p-1 text-slate-400 hover:text-slate-700 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form onsubmit="handleSaveEditSurat(event)" class="p-5 space-y-3.5 overflow-y-auto">
+                <input type="hidden" id="edit-surat-id">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor Surat</label>
+                        <input type="text" id="edit-surat-nomor" required class="w-full px-3 py-2 text-xs font-mono border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-900">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Surat</label>
+                        <input type="text" id="edit-surat-tanggal" required class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-900">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Pemohon</label>
+                    <input type="text" id="edit-surat-pemohon" required class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-900">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Judul / Jenis Surat</label>
+                    <input type="text" id="edit-surat-jenis" required placeholder="Contoh: Surat Pengantar Izin Keramaian / Keterangan Tidak Mampu" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-900">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Keperluan / Keterangan</label>
+                    <textarea id="edit-surat-keperluan" rows="2" required class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-900"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Kalimat Pembuka Surat (Opsional)</label>
+                    <textarea id="edit-surat-pembuka" rows="2" placeholder="Kosongkan untuk memakai template default RT..." class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-900"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Kalimat Pengantar Biodata (Opsional)</label>
+                    <input type="text" id="edit-surat-pengantar" placeholder="Kosongkan jika tidak perlu kalimat tambahan..." class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-900">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Paragraf Penutup / Redaksi Tambahan (Opsional)</label>
+                    <textarea id="edit-surat-penutup" rows="3" placeholder="Kosongkan untuk menggunakan template penutup standar RT..." class="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-900"></textarea>
+                </div>
+                <div class="pt-3 border-t border-slate-100 flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('modal-edit-surat')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Batal</button>
+                    <button type="submit" class="px-5 py-2 text-xs font-bold bg-blue-950 hover:bg-blue-900 text-white rounded-xl">Simpan Perubahan Surat</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
     <!-- MODAL PRATINJAU & CETAK SURAT PENGANTAR (TANPA STEMPEL DIGITAL)       -->
     <!-- ===================================================================== -->
     <div id="modal-surat-print" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-3 sm:p-6 overflow-y-auto">
@@ -897,6 +1001,7 @@
                 <!-- Isi Surat -->
                 <div class="text-sm leading-relaxed space-y-4">
                     <p id="print-pembuka">Yang bertanda tangan di bawah ini, Ketua RT 011 / RW 010 menerangkan dengan sebenarnya bahwa:</p>
+                    <p id="print-pengantar-biodata" class="hidden">Dengan ini menerangkan bahwa warga tersebut di bawah ini:</p>
                     <table class="w-full text-sm ml-2">
                         <tbody>
                             <tr>
@@ -921,7 +1026,7 @@
                             </tr>
                         </tbody>
                     </table>
-                    <p>Orang tersebut di atas adalah benar warga kami yang berdomisili di lingkungan RT 011 / RW 010. Demikian surat pengantar ini dibuat untuk dapat dipergunakan sebagaimana mestinya.</p>
+                    <p id="print-penutup">Orang tersebut di atas adalah benar warga kami yang berdomisili di lingkungan RT 011 / RW 010. Demikian surat pengantar ini dibuat untuk dapat dipergunakan sebagaimana mestinya.</p>
                 </div>
 
                 <!-- Tanda Tangan & Ruang Kosong Bersih untuk Stempel Basah -->
@@ -1057,28 +1162,7 @@
                     }
                 ],
                 kas: [],
-                surat: [
-                    {
-                        id: 's1',
-                        nomorSurat: '001/SP-RT011/XI/2026',
-                        tanggal: '15 Nov 2026',
-                        wargaId: 'w1',
-                        namaPemohon: 'Budi Santoso',
-                        jenisSurat: 'Surat Pengantar SKCK Kepolisian',
-                        keperluan: 'Persyaratan administrasi perpanjangan kerja',
-                        status: 'Disetujui'
-                    },
-                    {
-                        id: 's2',
-                        nomorSurat: 'Menunggu Verifikasi',
-                        tanggal: '19 Nov 2026',
-                        wargaId: 'w2',
-                        namaPemohon: 'Siti Aminah',
-                        jenisSurat: 'Pengantar Pembuatan / Perpanjangan KTP & KK',
-                        keperluan: 'Pembaruan data Kartu Keluarga',
-                        status: 'Menunggu'
-                    }
-                ],
+                surat: [],
                 pengumuman: [
                     {
                         id: 'p1',
@@ -1997,6 +2081,10 @@
                             <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold ${badgeClass}">${s.status}</span>
                         </td>
                         <td class="py-3 px-4 text-right whitespace-nowrap space-x-1">
+                            <button onclick="openEditSuratModal('${s.id}')" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold inline-flex items-center gap-1" title="Edit isi, jenis, atau keperluan surat">
+                                <i data-lucide="pencil" class="w-3 h-3"></i>
+                                <span>Edit</span>
+                            </button>
                             ${
                                 s.status === 'Menunggu'
                                     ? `<button onclick="updateSuratStatus('${s.id}', 'Disetujui')" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">Setujui &amp; Terbitkan</button>
@@ -2022,18 +2110,87 @@
             lucide.createIcons();
         }
 
+        const ROMAN_MONTHS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+
         window.updateSuratStatus = async function(suratId, newStatus) {
             const surat = sharedState.surat.find((s) => s.id === suratId);
             if (!surat) return;
             surat.status = newStatus;
             if (newStatus === 'Disetujui') {
-                const countApproved = sharedState.surat.filter((s) => s.status === 'Disetujui').length;
+                const now = new Date();
+                const romanMonth = ROMAN_MONTHS[now.getMonth()];
+                const currentYear = now.getFullYear();
+
+                // Hitung nomor urut berjalan di tahun yang sama (tidak bentrok meski riwayat lama ada/direset)
+                const lastSeq = Number(sharedState.lastSuratSeqByYear?.[currentYear]) || 0;
+                const approvedInYear = sharedState.surat.filter(
+                    (s) => s.status === 'Disetujui' && s.id !== surat.id && String(s.nomorSurat || '').endsWith(`/${currentYear}`)
+                ).length;
+                const nextSeq = Math.max(lastSeq, approvedInYear) + 1;
+
+                if (!sharedState.lastSuratSeqByYear) sharedState.lastSuratSeqByYear = {};
+                sharedState.lastSuratSeqByYear[currentYear] = nextSeq;
+
                 const prof = sharedState.profile;
-                surat.nomorSurat = `${String(countApproved).padStart(3, '0')}/SP-RT${prof.rt}/XI/2026`;
+                surat.nomorSurat = `${String(nextSeq).padStart(3, '0')}/SP-RT${prof.rt}/${romanMonth}/${currentYear}`;
+                surat.tanggal = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
             }
             await persistState();
             renderPengurusDashboard();
             showToast(`Status surat diubah menjadi: ${newStatus}`);
+        };
+
+        window.resetRiwayatSurat = async function() {
+            if (!sharedState.surat.length) {
+                showToast('Riwayat surat sudah kosong.');
+                return;
+            }
+            if (!confirm('Hapus seluruh riwayat pengajuan surat pengantar (baik lokal maupun Firestore)?')) {
+                return;
+            }
+            sharedState.surat = [];
+            await persistState();
+            renderAllViews();
+            showToast('Seluruh riwayat pengajuan surat berhasil direset ulang.');
+        };
+
+        window.openEditSuratModal = function(suratId) {
+            const surat = sharedState.surat.find((s) => s.id === suratId);
+            if (!surat) return;
+            document.getElementById('edit-surat-id').value = surat.id;
+            document.getElementById('edit-surat-nomor').value = surat.nomorSurat || '';
+            document.getElementById('edit-surat-tanggal').value = surat.tanggal || '';
+            document.getElementById('edit-surat-pemohon').value = surat.namaPemohon || '';
+            document.getElementById('edit-surat-jenis').value = surat.jenisSurat || '';
+            document.getElementById('edit-surat-keperluan').value = surat.keperluan || '';
+            document.getElementById('edit-surat-pembuka').value = surat.pembukaCustom || '';
+            document.getElementById('edit-surat-pengantar').value = surat.pengantarCustom || '';
+            document.getElementById('edit-surat-penutup').value = surat.penutupCustom || '';
+            openModal('modal-edit-surat');
+        };
+
+        window.handleSaveEditSurat = async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit-surat-id').value;
+            const idx = sharedState.surat.findIndex((s) => s.id === id);
+            if (idx === -1) return;
+
+            sharedState.surat[idx] = {
+                ...sharedState.surat[idx],
+                nomorSurat: document.getElementById('edit-surat-nomor').value.trim(),
+                tanggal: document.getElementById('edit-surat-tanggal').value.trim(),
+                namaPemohon: document.getElementById('edit-surat-pemohon').value.trim(),
+                jenisSurat: document.getElementById('edit-surat-jenis').value.trim(),
+                keperluan: document.getElementById('edit-surat-keperluan').value.trim(),
+                pembukaCustom: document.getElementById('edit-surat-pembuka').value.trim(),
+                pengantarCustom: document.getElementById('edit-surat-pengantar').value.trim(),
+                penutupCustom: document.getElementById('edit-surat-penutup').value.trim()
+            };
+
+            closeModal('modal-edit-surat');
+            await persistState();
+            renderAllViews();
+            showToast('Perubahan surat pengantar berhasil disimpan.');
         };
 
         window.previewSuratPrint = function(suratId) {
@@ -2042,11 +2199,25 @@
             const warga = sharedState.warga.find((w) => w.id === surat.wargaId) || {};
             const prof = sharedState.profile;
 
+            const defaultPembuka = prof.templatePembuka || `Yang bertanda tangan di bawah ini, Ketua RT ${prof.rt} / RW ${prof.rw} menerangkan dengan sebenarnya bahwa:`;
+            const defaultPenutup = prof.templatePenutup || `Orang tersebut di atas adalah benar warga kami yang berdomisili di lingkungan RT ${prof.rt} / RW ${prof.rw}. Demikian surat pengantar ini dibuat untuk dapat dipergunakan sebagaimana mestinya.`;
+            const pengantarText = surat.pengantarCustom || prof.templatePengantar || '';
+
             document.getElementById('print-kop-rtrw').textContent = `RUKUN TETANGGA ${prof.rt} / RUKUN WARGA ${prof.rw}`;
             document.getElementById('print-kop-alamat').textContent = prof.alamat;
             document.getElementById('print-kop-wilayah').textContent = prof.wilayah;
             document.getElementById('print-nomor-surat').textContent = `Nomor: ${surat.nomorSurat}`;
-            document.getElementById('print-pembuka').textContent = `Yang bertanda tangan di bawah ini, Ketua RT ${prof.rt} / RW ${prof.rw} menerangkan dengan sebenarnya bahwa:`;
+            document.getElementById('print-pembuka').textContent = surat.pembukaCustom || defaultPembuka;
+
+            const pengantarEl = document.getElementById('print-pengantar-biodata');
+            if (pengantarText) {
+                pengantarEl.textContent = pengantarText;
+                pengantarEl.classList.remove('hidden');
+            } else {
+                pengantarEl.textContent = '';
+                pengantarEl.classList.add('hidden');
+            }
+
             document.getElementById('print-nama').textContent = surat.namaPemohon;
             document.getElementById('print-kk').textContent = surat.nikPemohon
                 ? `${surat.nikPemohon} (KK: ${warga.noKK || '-'})`
@@ -2054,6 +2225,7 @@
             document.getElementById('print-domisili').textContent = `${warga.blok || '-'}, ${prof.alamat}`;
             document.getElementById('print-jenis').textContent = surat.jenisSurat;
             document.getElementById('print-keperluan').textContent = surat.keperluan;
+            document.getElementById('print-penutup').textContent = surat.penutupCustom || defaultPenutup;
             document.getElementById('print-tanggal').textContent = surat.tanggal;
             document.getElementById('print-ttd-rw').innerHTML = `Mengetahui,<br>Ketua RW ${prof.rw}`;
             document.getElementById('print-ttd-rt').textContent = `Ketua RT ${prof.rt} / RW ${prof.rw}`;
@@ -2097,6 +2269,9 @@
             document.getElementById('prof-bendahara').value = prof.bendaharaRT;
             document.getElementById('prof-alamat').value = prof.alamat;
             document.getElementById('prof-wilayah').value = prof.wilayah;
+            document.getElementById('prof-tpl-pembuka').value = prof.templatePembuka || `Yang bertanda tangan di bawah ini, Ketua RT ${prof.rt} / RW ${prof.rw} menerangkan dengan sebenarnya bahwa:`;
+            document.getElementById('prof-tpl-pengantar').value = prof.templatePengantar || '';
+            document.getElementById('prof-tpl-penutup').value = prof.templatePenutup || `Orang tersebut di atas adalah benar warga kami yang berdomisili di lingkungan RT ${prof.rt} / RW ${prof.rw}. Demikian surat pengantar ini dibuat untuk dapat dipergunakan sebagaimana mestinya.`;
         }
 
         window.handleAddPengumuman = async function(e) {
@@ -2130,17 +2305,23 @@
 
         window.handleSaveProfileRT = async function(e) {
             e.preventDefault();
+            const rtVal = document.getElementById('prof-rt').value.trim();
+            const rwVal = document.getElementById('prof-rw').value.trim();
             sharedState.profile = {
-                rt: document.getElementById('prof-rt').value.trim(),
-                rw: document.getElementById('prof-rw').value.trim(),
+                ...sharedState.profile,
+                rt: rtVal,
+                rw: rwVal,
                 ketuaRT: document.getElementById('prof-ketua').value.trim(),
                 bendaharaRT: document.getElementById('prof-bendahara').value.trim(),
                 alamat: document.getElementById('prof-alamat').value.trim(),
-                wilayah: document.getElementById('prof-wilayah').value.trim()
+                wilayah: document.getElementById('prof-wilayah').value.trim(),
+                templatePembuka: document.getElementById('prof-tpl-pembuka').value.trim() || `Yang bertanda tangan di bawah ini, Ketua RT ${rtVal} / RW ${rwVal} menerangkan dengan sebenarnya bahwa:`,
+                templatePengantar: document.getElementById('prof-tpl-pengantar').value.trim(),
+                templatePenutup: document.getElementById('prof-tpl-penutup').value.trim() || `Orang tersebut di atas adalah benar warga kami yang berdomisili di lingkungan RT ${rtVal} / RW ${rwVal}. Demikian surat pengantar ini dibuat untuk dapat dipergunakan sebagaimana mestinya.`
             };
             await persistState();
             renderAllViews();
-            showToast('Profil & identitas RT berhasil disimpan.');
+            showToast('Profil RT & template redaksi surat berhasil disimpan.');
         };
 
         // --- RENDER PORTAL WARGA ---
@@ -2287,14 +2468,24 @@
                                 <p class="text-xs text-slate-600 mt-0.5">Pemohon: <b>${s.namaPemohon}</b> • ${s.keperluan}</p>
                                 <p class="text-[11px] text-slate-400 mt-0.5">${s.tanggal} • No: ${s.nomorSurat}</p>
                             </div>
-                            ${
-                                s.status === 'Disetujui'
-                                    ? `<button onclick="previewSuratPrint('${s.id}')" class="px-3.5 py-2 rounded-xl bg-blue-950 hover:bg-blue-900 text-white text-xs font-bold inline-flex items-center gap-1.5 self-start sm:self-auto">
-                                        <i data-lucide="printer" class="w-3.5 h-3.5"></i>
-                                        <span>Cetak Surat</span>
-                                      </button>`
-                                    : ''
-                            }
+                            <div class="flex items-center gap-2 self-start sm:self-auto">
+                                ${
+                                    s.status === 'Menunggu'
+                                        ? `<button onclick="openEditSuratModal('${s.id}')" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold inline-flex items-center gap-1.5">
+                                            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                            <span>Edit Pengajuan</span>
+                                          </button>`
+                                        : ''
+                                }
+                                ${
+                                    s.status === 'Disetujui'
+                                        ? `<button onclick="previewSuratPrint('${s.id}')" class="px-3.5 py-2 rounded-xl bg-blue-950 hover:bg-blue-900 text-white text-xs font-bold inline-flex items-center gap-1.5">
+                                            <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                                            <span>Cetak Surat</span>
+                                          </button>`
+                                        : ''
+                                }
+                            </div>
                         </div>`;
                     })
                     .join('');
@@ -2388,6 +2579,82 @@
             window.open(url, '_blank');
         }
 
+        // --- BACKUP & RESTORE DATA (JSON) ---
+        window.handleBackupDataJSON = function() {
+            try {
+                const now = new Date();
+                const dateStamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                const payload = {
+                    app: 'RT SEBELAS',
+                    exportedAt: now.toISOString(),
+                    data: sharedState
+                };
+                const jsonString = JSON.stringify(payload, null, 2);
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `backup-rt-sebelas-${dateStamp}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showToast('File backup data berhasil diunduh!');
+            } catch (err) {
+                console.error('Gagal membuat backup:', err);
+                showToast('Gagal membuat file backup data.', 'error');
+            }
+        };
+
+        window.triggerRestoreDataJSON = function() {
+            const input = document.getElementById('restore-json-input');
+            if (!input) return;
+            input.value = '';
+            input.click();
+        };
+
+        window.handleRestoreDataJSON = function(e) {
+            const file = e.target.files?.[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(evt) {
+                try {
+                    const parsed = JSON.parse(evt.target.result);
+                    const restoredData = parsed && parsed.data && Array.isArray(parsed.data.warga)
+                        ? parsed.data
+                        : (parsed && Array.isArray(parsed.warga) ? parsed : null);
+
+                    if (!restoredData) {
+                        showToast('Format file backup tidak valid atau bukan backup RT SEBELAS.', 'error');
+                        return;
+                    }
+
+                    const jumlahKK = restoredData.warga.length;
+                    const jumlahKas = Array.isArray(restoredData.kas) ? restoredData.kas.length : 0;
+                    const jumlahSurat = Array.isArray(restoredData.surat) ? restoredData.surat.length : 0;
+
+                    if (!confirm(`Pulihkan data dari "${file.name}"?
+
+Isi backup: ${jumlahKK} KK, ${jumlahKas} catatan kas, ${jumlahSurat} arsip surat.
+Data saat ini akan digantikan dengan data dari file backup.`)) {
+                        return;
+                    }
+
+                    sharedState = { ...createDefaultData(), ...restoredData };
+                    await persistState();
+                    renderAllViews();
+                    showToast('Data berhasil dipulihkan dari file backup!');
+                } catch (err) {
+                    console.error('Gagal restore data:', err);
+                    showToast('File rusak atau gagal dibaca sebagai JSON.', 'error');
+                }
+            };
+            reader.readAsText(file);
+        };
+
         // --- BOOTSTRAP APLIKASI SAAT HALAMAN SIAP ---
         renderAllViews();
         initFirestoreSync();
@@ -2434,4 +2701,4 @@
         }
     </script>
 </body>
-</html> 
+</html>
