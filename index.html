@@ -836,7 +836,10 @@
                         <label class="block text-xs font-semibold text-slate-700 mb-1">Peran Portal</label>
                         <select id="warga-form-role" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-900">
                             <option value="warga">Warga</option>
-                            <option value="pengurus">Pengurus RT</option>
+                            <option value="ketua">Ketua RT (Full Akses)</option>
+                            <option value="bendahara">Bendahara RT (Keuangan &amp; Kas)</option>
+                            <option value="sekretaris">Sekretaris RT (Surat Menyurat)</option>
+                            <option value="pengurus">Pengurus RT (Legacy / Full)</option>
                         </select>
                     </div>
                 </div>
@@ -1575,33 +1578,59 @@
                 return;
             }
 
+            const isStaffRole = (r) => ['ketua', 'bendahara', 'sekretaris', 'pengurus'].includes(r);
+            const getRoleLabel = (r) => {
+                if (r === 'ketua') return 'Ketua RT';
+                if (r === 'bendahara') return 'Bendahara RT';
+                if (r === 'sekretaris') return 'Sekretaris RT';
+                if (r === 'pengurus') return 'Pengurus RT';
+                return 'Warga';
+            };
+            const getAllowedTabsForRole = (r) => {
+                if (r === 'bendahara') return ['iuran'];
+                if (r === 'sekretaris') return ['warga', 'surat', 'pengumuman'];
+                return ['warga', 'iuran', 'surat', 'pengumuman']; // ketua & pengurus full akses
+            };
+            const getDefaultTabForRole = (r) => {
+                if (r === 'bendahara') return 'iuran';
+                if (r === 'sekretaris') return 'surat';
+                return 'warga';
+            };
+
+            const hasStaffDashboard = isStaffRole(user.role);
+
             // Tampilkan status user di header
             userInfoEl.classList.remove('hidden');
             userInfoEl.classList.add('flex');
             document.getElementById('header-user-name').textContent = user.nama;
-            document.getElementById('header-user-role').textContent = user.role === 'pengurus' ? 'Pengurus RT' : 'Warga';
+            document.getElementById('header-user-role').textContent = getRoleLabel(user.role);
 
             btnLogout.classList.remove('hidden');
             btnLogout.classList.add('inline-flex');
 
-            if (user.role === 'pengurus') {
+            // Ketua, Bendahara, dan Sekretaris semuanya punya tombol switch ke Portal Warga
+            if (hasStaffDashboard) {
                 btnPersonal.classList.remove('hidden');
                 btnPersonal.classList.add('inline-flex');
                 document.getElementById('label-toggle-personal').textContent = pengurusViewingPersonal
-                    ? 'Kembali ke Dashboard Pengurus'
-                    : 'Tagihan Pribadi Saya';
+                    ? 'Kembali ke Dasbor Pengurus'
+                    : 'Portal Warga Saya';
             } else {
                 btnPersonal.classList.add('hidden');
             }
 
             viewLogin.classList.add('hidden');
 
-            if (user.role === 'pengurus' && !pengurusViewingPersonal) {
+            if (hasStaffDashboard && !pengurusViewingPersonal) {
+                const allowedTabs = getAllowedTabsForRole(user.role);
+                if (!allowedTabs.includes(activePengurusTab)) {
+                    activePengurusTab = getDefaultTabForRole(user.role);
+                }
                 viewPengurus.classList.remove('hidden');
                 viewWarga.classList.add('hidden');
                 bottomNavPengurus.classList.remove('hidden');
                 bottomNavWarga.classList.add('hidden');
-                renderPengurusDashboard();
+                renderPengurusDashboard(user);
             } else {
                 viewPengurus.classList.add('hidden');
                 viewWarga.classList.remove('hidden');
@@ -1636,15 +1665,64 @@
         }
 
         // --- RENDER DASHBOARD PENGURUS ---
+        function getActiveStaffUser() {
+            return sharedState.warga.find((w) => w.id === currentUserId) || null;
+        }
+
+        function getAllowedTabsForUser(user) {
+            const r = user?.role;
+            if (r === 'bendahara') return ['iuran'];
+            if (r === 'sekretaris') return ['warga', 'surat', 'pengumuman'];
+            return ['warga', 'iuran', 'surat', 'pengumuman'];
+        }
+
+        function applyRoleTabVisibility(user) {
+            const allowed = getAllowedTabsForUser(user);
+            const allTabs = ['warga', 'iuran', 'surat', 'pengumuman'];
+            const visibleCount = allowed.length;
+
+            const desktopNav = document.querySelector('#view-pengurus nav');
+            if (desktopNav) {
+                const colClass = visibleCount === 1
+                    ? 'grid-cols-1 max-w-md mx-auto'
+                    : (visibleCount === 3 ? 'grid-cols-3' : 'grid-cols-4');
+                desktopNav.className = `grid gap-1.5 ${colClass}`;
+            }
+
+            const mobileGrid = document.querySelector('#bottom-nav-pengurus > div');
+            if (mobileGrid) {
+                const mColClass = visibleCount === 1
+                    ? 'grid-cols-1'
+                    : (visibleCount === 3 ? 'grid-cols-3' : 'grid-cols-4');
+                mobileGrid.className = `grid h-16 ${mColClass}`;
+            }
+
+            allTabs.forEach((t) => {
+                const isAllowed = allowed.includes(t);
+                const dBtn = document.getElementById(`tab-btn-${t}`);
+                const mBtn = document.getElementById(`mobile-tab-${t}`);
+                if (dBtn) dBtn.classList.toggle('hidden', !isAllowed);
+                if (mBtn) mBtn.classList.toggle('hidden', !isAllowed);
+            });
+        }
+
         window.switchPengurusTab = function(tabName) {
-            activePengurusTab = tabName;
+            const user = getActiveStaffUser();
+            const allowed = getAllowedTabsForUser(user);
+            const targetTab = allowed.includes(tabName) ? tabName : allowed[0];
+
+            activePengurusTab = targetTab;
             document.querySelectorAll('.pengurus-panel').forEach((el) => el.classList.add('hidden'));
-            document.getElementById(`panel-pengurus-${tabName}`).classList.remove('hidden');
+            const panelEl = document.getElementById(`panel-pengurus-${targetTab}`);
+            if (panelEl) panelEl.classList.remove('hidden');
 
             document.querySelectorAll('.pengurus-tab-btn').forEach((btn) => {
                 btn.className = 'pengurus-tab-btn px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 flex items-center justify-center gap-2 transition';
+                if (btn.id && !allowed.includes(btn.id.replace('tab-btn-', ''))) {
+                    btn.classList.add('hidden');
+                }
             });
-            const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+            const activeBtn = document.getElementById(`tab-btn-${targetTab}`);
             if (activeBtn) {
                 activeBtn.className = 'pengurus-tab-btn px-3 py-2.5 rounded-xl text-sm font-bold bg-blue-950 text-white flex items-center justify-center gap-2 transition';
             }
@@ -1653,7 +1731,7 @@
                 btn.classList.remove('text-blue-950', 'font-bold');
                 btn.classList.add('text-slate-500', 'font-medium');
             });
-            const activeMobileBtn = document.getElementById(`mobile-tab-${tabName}`);
+            const activeMobileBtn = document.getElementById(`mobile-tab-${targetTab}`);
             if (activeMobileBtn) {
                 activeMobileBtn.classList.remove('text-slate-500', 'font-medium');
                 activeMobileBtn.classList.add('text-blue-950', 'font-bold');
@@ -2017,9 +2095,18 @@
             window.open(`https://wa.me/?text=${pesan}`, '_blank');
         };
 
-        function renderPengurusDashboard() {
+        function renderPengurusDashboard(user = null) {
+            const activeUser = user || getActiveStaffUser();
             const prof = sharedState.profile;
-            document.getElementById('pengurus-banner-title').textContent = `Administrasi RT ${prof.rt} / RW ${prof.rw}`;
+            const roleTitle = activeUser?.role === 'bendahara'
+                ? 'Dasbor Bendahara RT'
+                : (activeUser?.role === 'sekretaris'
+                    ? 'Dasbor Sekretaris RT'
+                    : (activeUser?.role === 'ketua'
+                        ? 'Dasbor Ketua RT (Full Akses)'
+                        : 'Administrasi RT'));
+
+            document.getElementById('pengurus-banner-title').textContent = `${roleTitle} • RT ${prof.rt} / RW ${prof.rw}`;
             document.getElementById('pengurus-banner-address').textContent = `${prof.alamat} • ${prof.wilayah}`;
             document.getElementById('stat-total-kk').textContent = `${sharedState.warga.length} KK`;
             document.getElementById('stat-saldo-kas').textContent = formatRupiah(getSaldoKas());
@@ -2029,6 +2116,7 @@
             const mobileBadgeSurat = document.getElementById('mobile-badge-surat');
             if (mobileBadgeSurat) mobileBadgeSurat.textContent = pendingSurat;
 
+            applyRoleTabVisibility(activeUser);
             renderWargaTable();
             renderIuranSection();
             renderSuratPengurusTable();
@@ -2071,11 +2159,19 @@
                     </td>
                     <td class="py-3 px-4">
                         <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                            w.role === 'pengurus'
+                            ['ketua', 'bendahara', 'sekretaris', 'pengurus'].includes(w.role)
                                 ? 'bg-blue-950 text-amber-300'
                                 : 'bg-slate-100 text-slate-700'
                         }">
-                            ${w.role === 'pengurus' ? 'Pengurus RT' : 'Warga'}
+                            ${
+                                w.role === 'ketua'
+                                    ? 'Ketua RT'
+                                    : (w.role === 'bendahara'
+                                        ? 'Bendahara RT'
+                                        : (w.role === 'sekretaris'
+                                            ? 'Sekretaris RT'
+                                            : (w.role === 'pengurus' ? 'Pengurus RT' : 'Warga')))
+                            }
                         </span>
                     </td>
                     <td class="py-3 px-4 text-right whitespace-nowrap space-x-1">
@@ -3143,7 +3239,7 @@
         };
 
         function notifyPengurusNewSuratWA(user, namaPemohon, jenisSurat, keperluan) {
-            const pengurus = sharedState.warga.find((w) => w.role === 'pengurus' && w.noWA);
+            const pengurus = sharedState.warga.find((w) => ['sekretaris', 'ketua', 'pengurus'].includes(w.role) && w.noWA);
             const waTarget = pengurus ? toInternationalWA(pengurus.noWA) : '';
             const pesan = encodeURIComponent(
                 `Assalamu'alaikum Pengurus RT ${sharedState.profile.rt} / RW ${sharedState.profile.rw},\n\n` +
