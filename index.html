@@ -30,10 +30,24 @@
             body * {
                 visibility: hidden;
             }
-            #printable-letter-area, #printable-letter-area * {
+            body.printing-rekap #printable-rekap-area,
+            body.printing-rekap #printable-rekap-area * {
                 visibility: visible;
             }
-            #printable-letter-area {
+            body.printing-rekap #printable-rekap-area {
+                position: fixed;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 20px 28px;
+                background: #ffffff;
+                box-shadow: none !important;
+            }
+            body:not(.printing-rekap) #printable-letter-area,
+            body:not(.printing-rekap) #printable-letter-area * {
+                visibility: visible;
+            }
+            body:not(.printing-rekap) #printable-letter-area {
                 position: fixed;
                 left: 0;
                 top: 0;
@@ -444,6 +458,45 @@
                             </form>
 
                             <div id="list-kas-history" class="divide-y divide-slate-100 max-h-64 overflow-y-auto border-t border-slate-100 pt-2"></div>
+                        </div>
+
+                        <!-- Rekap Laporan Keuangan Bulanan & Akumulatif -->
+                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                            <div class="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between gap-2 bg-slate-50/70">
+                                <div>
+                                    <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                                        <i data-lucide="bar-chart-3" class="w-4 h-4 text-blue-900"></i>
+                                        Rekap Laporan Kas (Bulanan &amp; Akumulatif)
+                                    </h3>
+                                    <p class="text-[11px] text-slate-500 mt-0.5">Otomatis terhitung dari riwayat pembayaran &amp; kas</p>
+                                </div>
+                                <div class="flex items-center gap-1.5 shrink-0">
+                                    <button type="button" onclick="openPrintRekapModal()" class="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold inline-flex items-center gap-1 transition" title="Pratinjau & Simpan PDF untuk dibagikan ke Grup WA">
+                                        <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                                        <span>Cetak / PDF</span>
+                                    </button>
+                                    <button type="button" onclick="exportRekapKeuanganCSV()" class="px-2.5 py-1.5 rounded-xl bg-blue-950 hover:bg-blue-900 text-white text-[11px] font-bold inline-flex items-center gap-1 transition" title="Unduh rekap ke Excel/CSV">
+                                        <i data-lucide="download" class="w-3.5 h-3.5 text-amber-300"></i>
+                                        <span>CSV</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase">
+                                            <th class="py-2.5 px-2.5">Bulan</th>
+                                            <th class="py-2.5 px-2.5 text-right">Iuran Warga</th>
+                                            <th class="py-2.5 px-2.5 text-right">Kas Lain</th>
+                                            <th class="py-2.5 px-2.5 text-right">Keluar</th>
+                                            <th class="py-2.5 px-2.5 text-right">Selisih</th>
+                                            <th class="py-2.5 px-2.5 text-right">Akumulatif</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-rekap-keuangan" class="divide-y divide-slate-100 text-xs"></tbody>
+                                    <tfoot id="tfoot-rekap-keuangan" class="bg-slate-50 border-t-2 border-slate-200 text-xs font-extrabold text-slate-900"></tfoot>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1056,6 +1109,131 @@
     </div>
 
     <!-- ===================================================================== -->
+    <!-- MODAL PRATINJAU & CETAK PDF REKAP LAPORAN KEUANGAN KAS RT             -->
+    <!-- ===================================================================== -->
+    <div id="modal-rekap-print" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-3 sm:p-6 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden my-auto">
+            <div class="p-4 bg-blue-950 text-white flex flex-wrap items-center justify-between gap-2.5 no-print">
+                <span class="font-bold text-sm flex items-center gap-2">
+                    <i data-lucide="file-spreadsheet" class="w-4 h-4 text-amber-400"></i>
+                    Pratinjau Laporan Keuangan Kas RT
+                </span>
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="flex items-center gap-1.5 bg-blue-900/90 border border-blue-700/80 rounded-lg px-2.5 py-1">
+                        <i data-lucide="calendar" class="w-3.5 h-3.5 text-amber-300"></i>
+                        <label for="select-rekap-print-tahun" class="text-[11px] font-semibold text-blue-100">Tahun:</label>
+                        <select id="select-rekap-print-tahun" onchange="renderPrintRekapPreview(this.value)" class="bg-blue-950 text-white text-xs font-bold rounded px-1.5 py-0.5 border border-blue-700 focus:outline-none focus:border-amber-400 cursor-pointer">
+                            <option value="all">Semua Tahun</option>
+                        </select>
+                    </div>
+                    <button type="button" onclick="shareRekapRingkasWA()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1.5" title="Kirim ringkasan teks ke Grup WA">
+                        <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
+                        <span>Teks WA</span>
+                    </button>
+                    <button type="button" onclick="triggerPrintRekapPDF()" class="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-blue-950 text-xs font-extrabold rounded-lg inline-flex items-center gap-1.5" title="Pilih 'Simpan sebagai PDF' di dialog cetak untuk dikirim ke Grup WA">
+                        <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                        <span>Cetak / Simpan PDF</span>
+                    </button>
+                    <button type="button" onclick="closeModal('modal-rekap-print')" class="p-1 text-slate-300 hover:text-white">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="px-4 py-2 bg-amber-50 border-b border-amber-200 text-[11px] text-amber-900 flex items-center gap-2 no-print">
+                <i data-lucide="info" class="w-4 h-4 text-amber-600 shrink-0"></i>
+                <span>Tips HP/Laptop: Klik <b>Cetak / Simpan PDF</b> lalu pilih printer <b>Simpan sebagai PDF (Save as PDF)</b> agar file PDF siap dibagikan ke Grup WhatsApp warga.</span>
+            </div>
+
+            <!-- Area Dokumen Cetak Laporan Keuangan 1 Halaman -->
+            <div id="printable-rekap-area" class="p-6 sm:p-8 bg-white text-slate-900">
+                <!-- Kop Laporan -->
+                <div class="border-b-4 border-double border-slate-900 pb-3 text-center mb-5">
+                    <p id="rekap-print-rtrw" class="text-xs font-bold tracking-widest uppercase">RUKUN TETANGGA 011 / RUKUN WARGA 010</p>
+                    <h2 id="rekap-print-alamat" class="text-base font-extrabold uppercase mt-0.5">LINGKUNGAN GUYUB RUKUN ERTE SEBELAS</h2>
+                    <p id="rekap-print-wilayah" class="text-[11px] text-slate-600 mt-0.5">Kelurahan Sukamaju, Kecamatan Cilodong, Kota Depok</p>
+                </div>
+
+                <!-- Judul Laporan -->
+                <div class="text-center mb-5">
+                    <h3 class="text-sm font-extrabold underline uppercase tracking-wide">LAPORAN REKAPITULASI KEUANGAN KAS RT</h3>
+                    <p id="rekap-print-periode-info" class="text-xs text-slate-600 mt-1">Rekapitulasi Bulanan &amp; Saldo Akumulatif</p>
+                </div>
+
+                <!-- Ringkasan 4 Kotak KPI -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-5 text-center">
+                    <div class="p-2.5 rounded-lg border border-slate-300 bg-slate-50">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase">Pemasukan Iuran</p>
+                        <p id="rekap-print-total-iuran" class="text-xs sm:text-sm font-extrabold text-emerald-700 mt-0.5">Rp 0</p>
+                    </div>
+                    <div class="p-2.5 rounded-lg border border-slate-300 bg-slate-50">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase">Pemasukan Kas Lain</p>
+                        <p id="rekap-print-total-lain" class="text-xs sm:text-sm font-extrabold text-teal-700 mt-0.5">Rp 0</p>
+                    </div>
+                    <div class="p-2.5 rounded-lg border border-slate-300 bg-slate-50">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase">Total Pengeluaran</p>
+                        <p id="rekap-print-total-keluar" class="text-xs sm:text-sm font-extrabold text-rose-700 mt-0.5">Rp 0</p>
+                    </div>
+                    <div class="p-2.5 rounded-lg border border-slate-800 bg-blue-50/50">
+                        <p class="text-[10px] font-bold text-slate-700 uppercase">Saldo Akhir Kas RT</p>
+                        <p id="rekap-print-saldo-akhir" class="text-xs sm:text-sm font-extrabold text-blue-950 mt-0.5">Rp 0</p>
+                    </div>
+                </div>
+
+                <!-- Tabel Rekap Bulanan & Akumulatif -->
+                <div class="mb-5">
+                    <p class="text-xs font-bold text-slate-800 mb-1.5 uppercase">A. Rekapitulasi Mutasi Kas per Bulan &amp; Saldo Akumulatif</p>
+                    <table class="w-full text-left border-collapse border border-slate-400 text-xs">
+                        <thead>
+                            <tr class="bg-slate-100 border-b border-slate-400 font-bold text-slate-800">
+                                <th class="py-2 px-2 border-r border-slate-300">No</th>
+                                <th class="py-2 px-2 border-r border-slate-300">Periode Bulan</th>
+                                <th class="py-2 px-2 border-r border-slate-300 text-right">Iuran Warga</th>
+                                <th class="py-2 px-2 border-r border-slate-300 text-right">Kas Lainnya</th>
+                                <th class="py-2 px-2 border-r border-slate-300 text-right">Pengeluaran</th>
+                                <th class="py-2 px-2 border-r border-slate-300 text-right">Surplus / Defisit</th>
+                                <th class="py-2 px-2 text-right">Saldo Akumulatif</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rekap-print-tbody" class="divide-y divide-slate-300"></tbody>
+                        <tfoot id="rekap-print-tfoot" class="bg-slate-100 border-t-2 border-slate-500 font-extrabold"></tfoot>
+                    </table>
+                </div>
+
+                <!-- Rincian Transaksi Terbaru (Maks 12 transaksi terakhir agar tetap muat 1 halaman) -->
+                <div class="mb-6">
+                    <p class="text-xs font-bold text-slate-800 mb-1.5 uppercase">B. Rincian Transaksi Kas Terakhir</p>
+                    <table class="w-full text-left border-collapse border border-slate-400 text-[11px]">
+                        <thead>
+                            <tr class="bg-slate-100 border-b border-slate-400 font-bold text-slate-800">
+                                <th class="py-1.5 px-2.5 border-r border-slate-300 w-24">Tanggal</th>
+                                <th class="py-1.5 px-2.5 border-r border-slate-300">Uraian Transaksi</th>
+                                <th class="py-1.5 px-2.5 border-r border-slate-300 text-right w-28">Masuk</th>
+                                <th class="py-1.5 px-2.5 text-right w-28">Keluar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rekap-print-kas-tbody" class="divide-y divide-slate-300"></tbody>
+                    </table>
+                </div>
+
+                <!-- Tanda Tangan Bendahara & Ketua RT -->
+                <div class="mt-8 grid grid-cols-2 gap-6 text-xs text-center">
+                    <div>
+                        <p class="mb-1">&nbsp;</p>
+                        <p class="font-semibold mb-16">Bendahara RT <span id="rekap-print-rt-num1">011</span></p>
+                        <p id="rekap-print-nama-bendahara" class="font-bold underline">Budi Santoso</p>
+                    </div>
+                    <div>
+                        <p id="rekap-print-tanggal" class="mb-1">20 November 2026</p>
+                        <p class="font-semibold mb-16">Mengetahui, Ketua RT <span id="rekap-print-rt-num2">011</span></p>
+                        <p id="rekap-print-nama-ketua" class="font-bold underline">H. Ahmad Subagyo, S.E.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
     <!-- SCRIPT UTAMA & KONEKSI FIREBASE FIRESTORE                             -->
     <!-- ===================================================================== -->
     <script type="module">
@@ -1512,6 +1690,333 @@
             }, 0);
         }
 
+        // --- REKAP LAPORAN KEUANGAN PER BULAN & AKUMULATIF ---
+        const MONTH_NAME_TO_NUM = {
+            'jan': '01', 'januari': '01',
+            'feb': '02', 'februari': '02',
+            'mar': '03', 'maret': '03',
+            'apr': '04', 'april': '04',
+            'mei': '05',
+            'jun': '06', 'juni': '06',
+            'jul': '07', 'juli': '07',
+            'agu': '08', 'agustus': '08', 'agt': '08',
+            'sep': '09', 'september': '09',
+            'okt': '10', 'oktober': '10',
+            'nov': '11', 'november': '11',
+            'des': '12', 'desember': '12'
+        };
+
+        function parseKasMonthKey(tanggalStr) {
+            const parts = String(tanggalStr || '').trim().split(/\s+/);
+            if (parts.length >= 3) {
+                const bulanRaw = parts[1].toLowerCase().replace(/[^a-z]/g, '');
+                const tahun = parts[2].replace(/\D/g, '');
+                const bulanNum = MONTH_NAME_TO_NUM[bulanRaw];
+                if (bulanNum && tahun.length === 4) {
+                    return `${tahun}-${bulanNum}`;
+                }
+            }
+            return CURRENT_MONTH_KEY;
+        }
+
+        function isIuranWargaEntry(item) {
+            const desc = String(item?.keterangan || '').trim().toLowerCase();
+            return desc.startsWith('iuran') || desc.includes('iuran warga');
+        }
+
+        function buildRekapKeuanganData() {
+            const mapBulan = {};
+
+            (sharedState.kas || []).forEach((item) => {
+                const mKey = parseKasMonthKey(item.tanggal);
+                if (!mapBulan[mKey]) {
+                    mapBulan[mKey] = {
+                        monthKey: mKey,
+                        label: formatMonthKey(mKey).shortLabel,
+                        fullLabel: formatMonthKey(mKey).fullLabel,
+                        iuranMasuk: 0,
+                        lainMasuk: 0,
+                        masuk: 0,
+                        keluar: 0
+                    };
+                }
+                const nominal = Number(item.nominal) || 0;
+                if (item.jenis === 'masuk') {
+                    if (isIuranWargaEntry(item)) {
+                        mapBulan[mKey].iuranMasuk += nominal;
+                    } else {
+                        mapBulan[mKey].lainMasuk += nominal;
+                    }
+                    mapBulan[mKey].masuk += nominal;
+                } else {
+                    mapBulan[mKey].keluar += nominal;
+                }
+            });
+
+            const sortedKeys = Object.keys(mapBulan).sort();
+            let saldoBerjalan = 0;
+
+            return sortedKeys.map((key) => {
+                const row = mapBulan[key];
+                const selisih = row.masuk - row.keluar;
+                saldoBerjalan += selisih;
+                return {
+                    ...row,
+                    selisih,
+                    akumulatif: saldoBerjalan
+                };
+            });
+        }
+
+        function renderRekapKeuanganTable() {
+            const tbody = document.getElementById('tbody-rekap-keuangan');
+            const tfoot = document.getElementById('tfoot-rekap-keuangan');
+            if (!tbody || !tfoot) return;
+
+            const rows = buildRekapKeuanganData();
+
+            if (rows.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-5 text-center text-xs text-slate-400">Belum ada transaksi kas untuk direkap.</td></tr>`;
+                tfoot.innerHTML = '';
+                return;
+            }
+
+            let grandIuran = 0;
+            let grandLain = 0;
+            let grandKeluar = 0;
+
+            tbody.innerHTML = rows
+                .map((r) => {
+                    grandIuran += r.iuranMasuk;
+                    grandLain += r.lainMasuk;
+                    grandKeluar += r.keluar;
+                    const selisihClass = r.selisih >= 0 ? 'text-emerald-700' : 'text-rose-600';
+                    const selisihPrefix = r.selisih > 0 ? '+' : '';
+                    return `
+                    <tr class="hover:bg-slate-50/80">
+                        <td class="py-2.5 px-2.5 font-bold text-slate-800 whitespace-nowrap">${r.label}</td>
+                        <td class="py-2.5 px-2.5 text-right text-emerald-700 font-semibold whitespace-nowrap">${formatRupiah(r.iuranMasuk)}</td>
+                        <td class="py-2.5 px-2.5 text-right text-teal-700 font-semibold whitespace-nowrap">${formatRupiah(r.lainMasuk)}</td>
+                        <td class="py-2.5 px-2.5 text-right text-rose-600 font-semibold whitespace-nowrap">${formatRupiah(r.keluar)}</td>
+                        <td class="py-2.5 px-2.5 text-right font-bold ${selisihClass} whitespace-nowrap">${selisihPrefix}${formatRupiah(r.selisih)}</td>
+                        <td class="py-2.5 px-2.5 text-right font-extrabold text-blue-950 whitespace-nowrap">${formatRupiah(r.akumulatif)}</td>
+                    </tr>`;
+                })
+                .join('');
+
+            const grandSaldo = (grandIuran + grandLain) - grandKeluar;
+            tfoot.innerHTML = `
+                <tr>
+                    <td class="py-2.5 px-2.5">TOTAL</td>
+                    <td class="py-2.5 px-2.5 text-right text-emerald-700 whitespace-nowrap">${formatRupiah(grandIuran)}</td>
+                    <td class="py-2.5 px-2.5 text-right text-teal-700 whitespace-nowrap">${formatRupiah(grandLain)}</td>
+                    <td class="py-2.5 px-2.5 text-right text-rose-600 whitespace-nowrap">${formatRupiah(grandKeluar)}</td>
+                    <td class="py-2.5 px-2.5 text-right whitespace-nowrap">${formatRupiah(grandSaldo)}</td>
+                    <td class="py-2.5 px-2.5 text-right text-blue-950 whitespace-nowrap">${formatRupiah(grandSaldo)}</td>
+                </tr>`;
+        }
+
+        window.exportRekapKeuanganCSV = function() {
+            const rows = buildRekapKeuanganData();
+            if (!rows.length) {
+                showToast('Belum ada data kas untuk diunduh.', 'error');
+                return;
+            }
+
+            const header = ['Bulan', 'Pemasukan Iuran Warga (Rp)', 'Pemasukan Kas Lainnya (Rp)', 'Pengeluaran (Rp)', 'Surplus/Defisit (Rp)', 'Saldo Akumulatif (Rp)'];
+            const lines = rows.map((r) => [r.fullLabel, r.iuranMasuk, r.lainMasuk, r.keluar, r.selisih, r.akumulatif].join(','));
+            const csvContent = '\uFEFF' + [header.join(','), ...lines].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `rekap-keuangan-rt-${sharedState.profile.rt}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('File CSV rekap keuangan berhasil diunduh.');
+        };
+
+        window.renderPrintRekapPreview = function(selectedYear = 'all') {
+            const allRows = buildRekapKeuanganData();
+            if (!allRows.length) return;
+
+            const isFiltered = selectedYear && selectedYear !== 'all';
+            const rows = isFiltered
+                ? allRows.filter((r) => r.monthKey.startsWith(`${selectedYear}-`))
+                : allRows;
+
+            const prof = sharedState.profile;
+            const todayStr = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+
+            document.getElementById('rekap-print-rtrw').textContent = `RUKUN TETANGGA ${prof.rt} / RUKUN WARGA ${prof.rw}`;
+            document.getElementById('rekap-print-alamat').textContent = prof.alamat;
+            document.getElementById('rekap-print-wilayah').textContent = prof.wilayah;
+
+            const periodeLabel = rows.length
+                ? (isFiltered
+                    ? `Tahun Buku ${selectedYear} (${rows[0].fullLabel} s.d. ${rows[rows.length - 1].fullLabel})`
+                    : `Semua Periode (${rows[0].fullLabel} s.d. ${rows[rows.length - 1].fullLabel})`)
+                : `Tahun Buku ${selectedYear}`;
+            document.getElementById('rekap-print-periode-info').textContent = `${periodeLabel} • Dicetak: ${todayStr}`;
+
+            let totalIuran = 0;
+            let totalLain = 0;
+            let totalKeluar = 0;
+            rows.forEach((r) => {
+                totalIuran += r.iuranMasuk;
+                totalLain += r.lainMasuk;
+                totalKeluar += r.keluar;
+            });
+
+            // Hitung saldo awal sebelum tahun terpilih jika filter tahun aktif
+            let saldoAwalTahun = 0;
+            if (isFiltered) {
+                allRows.forEach((r) => {
+                    if (r.monthKey < `${selectedYear}-01`) {
+                        saldoAwalTahun += r.selisih;
+                    }
+                });
+            }
+
+            const surplusTahun = (totalIuran + totalLain) - totalKeluar;
+            const saldoAkhir = rows.length ? rows[rows.length - 1].akumulatif : saldoAwalTahun;
+
+            document.getElementById('rekap-print-total-iuran').textContent = formatRupiah(totalIuran);
+            document.getElementById('rekap-print-total-lain').textContent = formatRupiah(totalLain);
+            document.getElementById('rekap-print-total-keluar').textContent = formatRupiah(totalKeluar);
+            document.getElementById('rekap-print-saldo-akhir').textContent = formatRupiah(saldoAkhir);
+
+            const saldoAwalRowHtml = (isFiltered && saldoAwalTahun !== 0)
+                ? `<tr class="bg-slate-50/80 italic text-slate-600">
+                    <td class="py-1.5 px-2 border-r border-slate-300 text-center">-</td>
+                    <td colspan="5" class="py-1.5 px-2 border-r border-slate-300 font-semibold">Saldo Awal Bawaan Sebelum Tahun ${selectedYear}</td>
+                    <td class="py-1.5 px-2 text-right font-bold text-slate-800">${formatRupiah(saldoAwalTahun)}</td>
+                   </tr>`
+                : '';
+
+            document.getElementById('rekap-print-tbody').innerHTML = saldoAwalRowHtml + rows
+                .map(
+                    (r, idx) => `
+                    <tr>
+                        <td class="py-1.5 px-2 border-r border-slate-300 text-center">${idx + 1}</td>
+                        <td class="py-1.5 px-2 border-r border-slate-300 font-bold">${r.fullLabel}</td>
+                        <td class="py-1.5 px-2 border-r border-slate-300 text-right text-emerald-800">${formatRupiah(r.iuranMasuk)}</td>
+                        <td class="py-1.5 px-2 border-r border-slate-300 text-right text-teal-800">${formatRupiah(r.lainMasuk)}</td>
+                        <td class="py-1.5 px-2 border-r border-slate-300 text-right text-rose-800">${formatRupiah(r.keluar)}</td>
+                        <td class="py-1.5 px-2 border-r border-slate-300 text-right font-semibold">${r.selisih > 0 ? '+' : ''}${formatRupiah(r.selisih)}</td>
+                        <td class="py-1.5 px-2 text-right font-extrabold">${formatRupiah(r.akumulatif)}</td>
+                    </tr>`
+                )
+                .join('');
+
+            const totalLabel = isFiltered ? `TOTAL TAHUN ${selectedYear}` : 'TOTAL KESELURUHAN';
+            document.getElementById('rekap-print-tfoot').innerHTML = `
+                <tr>
+                    <td colspan="2" class="py-2 px-2 border-r border-slate-300 text-center">${totalLabel}</td>
+                    <td class="py-2 px-2 border-r border-slate-300 text-right text-emerald-800">${formatRupiah(totalIuran)}</td>
+                    <td class="py-2 px-2 border-r border-slate-300 text-right text-teal-800">${formatRupiah(totalLain)}</td>
+                    <td class="py-2 px-2 border-r border-slate-300 text-right text-rose-800">${formatRupiah(totalKeluar)}</td>
+                    <td class="py-2 px-2 border-r border-slate-300 text-right">${surplusTahun > 0 ? '+' : ''}${formatRupiah(surplusTahun)}</td>
+                    <td class="py-2 px-2 text-right">${formatRupiah(saldoAkhir)}</td>
+                </tr>`;
+
+            const filteredKas = (sharedState.kas || []).filter((k) => {
+                if (!isFiltered) return true;
+                return parseKasMonthKey(k.tanggal).startsWith(`${selectedYear}-`);
+            });
+            const recentKas = filteredKas.slice(-12);
+            document.getElementById('rekap-print-kas-tbody').innerHTML = recentKas.length
+                ? recentKas
+                    .map(
+                        (k) => `
+                        <tr>
+                            <td class="py-1 px-2.5 border-r border-slate-300 whitespace-nowrap">${k.tanggal}</td>
+                            <td class="py-1 px-2.5 border-r border-slate-300">${k.keterangan}</td>
+                            <td class="py-1 px-2.5 border-r border-slate-300 text-right">${k.jenis === 'masuk' ? formatRupiah(k.nominal) : '-'}</td>
+                            <td class="py-1 px-2.5 text-right">${k.jenis === 'keluar' ? formatRupiah(k.nominal) : '-'}</td>
+                        </tr>`
+                    )
+                    .join('')
+                : `<tr><td colspan="4" class="py-2 px-2.5 text-center text-slate-500">Tidak ada transaksi kas pada tahun ${selectedYear}.</td></tr>`;
+
+            document.getElementById('rekap-print-rt-num1').textContent = prof.rt;
+            document.getElementById('rekap-print-rt-num2').textContent = prof.rt;
+            document.getElementById('rekap-print-nama-bendahara').textContent = prof.bendaharaRT;
+            document.getElementById('rekap-print-tanggal').textContent = todayStr;
+            document.getElementById('rekap-print-nama-ketua').textContent = prof.ketuaRT;
+        };
+
+        window.openPrintRekapModal = function() {
+            const rows = buildRekapKeuanganData();
+            if (!rows.length) {
+                showToast('Belum ada data transaksi kas untuk dicetak.', 'error');
+                return;
+            }
+
+            // Kumpulkan daftar tahun unik dari transaksi kas yang tersedia
+            const yearSet = new Set();
+            rows.forEach((r) => {
+                const yr = r.monthKey.split('-')[0];
+                if (yr && yr.length === 4) yearSet.add(yr);
+            });
+            const sortedYears = Array.from(yearSet).sort((a, b) => b.localeCompare(a));
+
+            const yearSelect = document.getElementById('select-rekap-print-tahun');
+            let defaultYear = 'all';
+            if (yearSelect) {
+                const currentYearStr = String(new Date().getFullYear());
+                defaultYear = sortedYears.includes(currentYearStr) ? currentYearStr : (sortedYears[0] || 'all');
+
+                yearSelect.innerHTML = [
+                    ...sortedYears.map((yr) => `<option value="${yr}">Tahun ${yr}</option>`),
+                    `<option value="all">Semua Tahun (${sortedYears.length} Tahun)</option>`
+                ].join('');
+                yearSelect.value = defaultYear;
+            }
+
+            renderPrintRekapPreview(defaultYear);
+            openModal('modal-rekap-print');
+        };
+
+        window.triggerPrintRekapPDF = function() {
+            document.body.classList.add('printing-rekap');
+            window.print();
+            setTimeout(() => {
+                document.body.classList.remove('printing-rekap');
+            }, 500);
+        };
+
+        window.shareRekapRingkasWA = function() {
+            const allRows = buildRekapKeuanganData();
+            if (!allRows.length) return;
+
+            const yearSelect = document.getElementById('select-rekap-print-tahun');
+            const selectedYear = yearSelect ? yearSelect.value : 'all';
+            const isFiltered = selectedYear && selectedYear !== 'all';
+            const rows = isFiltered
+                ? allRows.filter((r) => r.monthKey.startsWith(`${selectedYear}-`))
+                : allRows;
+            if (!rows.length) return;
+
+            const prof = sharedState.profile;
+            const judulPeriode = isFiltered ? ` (TAHUN ${selectedYear})` : ' (SEMUA PERIODE)';
+            const lines = rows
+                .map((r) => `• *${r.shortLabel}*: Iuran ${formatRupiah(r.iuranMasuk)} | Kas Lain ${formatRupiah(r.lainMasuk)} | Keluar ${formatRupiah(r.keluar)} | Saldo *${formatRupiah(r.akumulatif)}*`)
+                .join('\n');
+            const saldoAkhir = rows[rows.length - 1].akumulatif;
+            const pesan = encodeURIComponent(
+                `📊 *LAPORAN KEUANGAN KAS RT ${prof.rt} / RW ${prof.rw}${judulPeriode}*\n` +
+                `(${prof.alamat})\n\n` +
+                `${lines}\n\n` +
+                `💰 *Saldo Akhir Kas RT: ${formatRupiah(saldoAkhir)}*\n` +
+                `_Bendahara RT ${prof.rt}: ${prof.bendaharaRT}_`
+            );
+            window.open(`https://wa.me/?text=${pesan}`, '_blank');
+        };
+
         function renderPengurusDashboard() {
             const prof = sharedState.profile;
             document.getElementById('pengurus-banner-title').textContent = `Administrasi RT ${prof.rt} / RW ${prof.rw}`;
@@ -1886,6 +2391,7 @@
 
             renderPayMonthCheckboxes();
             renderRekapIuranTable();
+            renderRekapKeuanganTable();
             lucide.createIcons();
         }
 
